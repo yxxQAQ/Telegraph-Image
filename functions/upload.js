@@ -48,7 +48,31 @@ export async function onRequestPost(context) {
         if (!fileId) {
             throw new Error('Failed to get file ID');
         }
+        
+// --- 开始注入: 异步更新图床URL回TG频道 ---
+        const messageId = result.data.result.message_id;
+        const requestOrigin = new URL(request.url).origin;
+        const imageUrl = `${requestOrigin}/file/${fileId}.${fileExtension}`;
 
+        // 构造更新 caption 的 payload
+        const editPayload = {
+            chat_id: env.TG_Chat_ID,
+            message_id: messageId,
+            caption: `\`${imageUrl}\``, 
+            parse_mode: 'MarkdownV2'
+        };
+
+        // 使用 context.waitUntil 挂起异步任务，避免阻塞前端页面的 200 响应速度
+        context.waitUntil(
+            fetch(`https://api.telegram.org/bot${env.TG_Bot_Token}/editMessageCaption`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(editPayload)
+            }).then(res => res.json()).then(tgRes => {
+                if (!tgRes.ok) console.error('Caption Edit Failed:', tgRes.description);
+            }).catch(err => console.error('Caption Network Error:', err))
+        );
+        // --- 注入结束 ---
         // 将文件信息保存到 KV 存储
         if (env.img_url) {
             await env.img_url.put(`${fileId}.${fileExtension}`, "", {
