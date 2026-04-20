@@ -49,37 +49,6 @@ export async function onRequestPost(context) {
             throw new Error('Failed to get file ID');
         }
         
-// --- 核心修改：追加图床 URL 到 Telegram 消息说明中 ---
-        try {
-            // 1. 获取当前部署的域名（如 https://telegraph-image-7kb.pages.dev）
-            const urlObj = new URL(request.url);
-            const domain = urlObj.origin; 
-            
-            // 2. 拼接完整的图床访问链接
-            const fullUrl = `${domain}/file/${fileId}.${fileExtension}`;
-            
-            // 3. 获取刚才 Bot 发送出的消息 ID
-            const messageId = result.data.result.message_id;
-
-            // 4. 使用 context.waitUntil 异步调用 TG 接口，不阻塞前端上传响应
-            context.waitUntil(
-                fetch(`https://api.telegram.org/bot${env.TG_Bot_Token}/editMessageCaption`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        chat_id: env.TG_Chat_ID,
-                        message_id: messageId,
-                        // 使用 MarkdownV2 格式，反引号包裹实现移动端“点击即复制”
-                        caption: `🔗 URL: \`${fullUrl}\``,
-                        parse_mode: 'MarkdownV2'
-                    })
-                })
-            );
-        } catch (updateError) {
-            // 仅记录错误，不中断主上传流程
-            console.error('Failed to update Telegram caption:', updateError);
-        }
-        // --- 修改结束 ---
 
         // 将文件信息保存到 KV 存储
         if (env.img_url) {
